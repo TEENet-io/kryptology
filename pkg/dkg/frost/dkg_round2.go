@@ -117,7 +117,12 @@ func (dp *DkgParticipant) Round2(bcast map[uint32]*Round1Bcast, p2psend map[uint
 	if err != nil {
 		return nil, err
 	}
-	vk := dp.verifiers.Commitments[0]
+
+	// vk := dp.verifiers.Commitments[0]
+
+	// Initialize commitment polynomial with F_i(x)
+	dp.Commitments = append([]curves.Point{}, dp.verifiers.Commitments...)
+
 	// Step 6 - Compute signing key share ski = \sum_{j=1}^n xji
 	for id := range bcast {
 		if id == dp.Id {
@@ -135,8 +140,14 @@ func (dp *DkgParticipant) Round2(bcast map[uint32]*Round1Bcast, p2psend map[uint
 		if id == dp.Id {
 			continue
 		}
-		vk = vk.Add(bcast[id].Verifiers.Commitments[0])
+		// vk = vk.Add(bcast[id].Verifiers.Commitments[0])
+
+		// F(x) = \sum_{j=1}^n F_j(x)
+		for j, c := range bcast[id].Verifiers.Commitments {
+			dp.Commitments[j] = dp.Commitments[j].Add(c)
+		}
 	}
+	vk := dp.Commitments[0]
 
 	// Store signing key share
 	dp.SkShare = sk

@@ -23,12 +23,19 @@ type DkgParticipant struct {
 	SkShare                curves.Scalar
 	VerificationKey        curves.Point
 	VkShare                curves.Point
-	feldman                *sharing.Feldman
-	verifiers              *sharing.FeldmanVerifier
-	secretShares           []*sharing.ShamirShare
-	ctx                    byte
-}
 
+	// Public verification polynomial F(x) = f(x) * G, s.t.,
+	//   f(0) == sk (hidden private key)
+	//   Commitments[0] == F(0) == VerificationKey (public key)
+	//	 SkShare * G = \sum_{j=0}^{threshold-1} Commitments[j] * Id^j
+	Commitments []curves.Point
+	Threshold   uint32
+
+	feldman      *sharing.Feldman
+	verifiers    *sharing.FeldmanVerifier
+	secretShares []*sharing.ShamirShare
+	ctx          byte
+}
 type dkgParticipantData struct {
 	Id        uint32
 	Share     *sharing.ShamirShare
@@ -58,8 +65,42 @@ func NewDkgParticipant(id, threshold uint32, ctx string, curve *curves.Curve, ot
 		Id:                     id,
 		round:                  1,
 		Curve:                  curve,
+		Threshold:              threshold,
 		feldman:                feldman,
 		otherParticipantShares: otherParticipantShares,
 		ctx:                    byte(ctxV),
 	}, nil
+}
+
+func (dp *DkgParticipant) Limit() int {
+	if dp == nil || dp.Curve == nil {
+		return 0
+	}
+	return len(dp.otherParticipantShares) + 1
+}
+
+func (dp *DkgParticipant) OtherParticipantIds() []uint32 {
+	if dp == nil || dp.Curve == nil {
+		return nil
+	}
+	ids := make([]uint32, 0, len(dp.otherParticipantShares))
+	for id := range dp.otherParticipantShares {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func EvalCommitmentPoly(curve *curves.Curve, coefs []curves.Point, x curves.Scalar) (curves.Point, error) {
+	degree := len(coefs) - 1
+
+	out, err := curve.Point.FromAffineCompressed(coefs[degree].ToAffineCompressed())
+	if err != nil {
+		return nil, err
+	}
+
+	for i := degree - 1; i >= 0; i-- {
+		out = out.Mul(x).Add(coefs[i])
+	}
+
+	return out, nil
 }

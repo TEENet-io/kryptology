@@ -14,14 +14,15 @@ import (
 // Inputs:
 // 1. Participant that holds a valid secret share before resharing
 // 2. New threshold t'
-// 3. New set of participants
+// 3. Ids of new participants who will hold new secret shares after resharing
 // Ouputs to be broadcast:
 // 1. Commitments of coefficients of the newly sampled polynomial with degree (t' - 1)
-// 	  { A(i,k) = a(i,k) * G }_k=1..t'-1
+// 	  { A(i,k) = a(i,k) * G }_{k=1..t'-1}
 // 2. Commitments of coefficients of the original global polynomial
-// 	  { PHI(i,k) }_k=0..t-1
+// 	  { PHI(i,k) }_{k=0..t-1}
 // Outputs to be sent to each participant:
-// 1. g_i(j) = z(i) + \sum_k={1..t'-1} a(i,k) * j^k
+// 1. { g_j = z(i) + \sum_{k=1..t'-1} a(i,k) * j^k }
+//    where {j \in S} are ids of the new participants who will hold a new secret share
 
 type ResharingBcast struct {
 	As   []curves.Point
@@ -30,7 +31,14 @@ type ResharingBcast struct {
 
 type ResharingP2PSend = map[uint32]*sharing.ShamirShare
 
-// ResharingRound1 is called by each participants who hold the old key shares
+// ResharingRound1 is called by a participant who hold a valid secret share
+// before resharing to generate inputs for resharing round 2.
+//
+// @param newThreshold - new threshold t'
+// @param newParticipants - ids of new participants who will hold new secret shares
+// @return bcast - contains commitments of the randomly sampled polynomial coefficients, As,
+// and the commitments of the original global polynomial coefficients, PHIs
+// @return p2psend - contains shares to be sent to the new participants privately
 func (dp *DkgParticipant) ResharingRound1(
 	newThreshold int, newParticipants ...uint32,
 ) (*ResharingBcast, ResharingP2PSend, error) {

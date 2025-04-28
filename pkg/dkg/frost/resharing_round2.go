@@ -8,7 +8,7 @@ import (
 	"github.com/coinbase/kryptology/pkg/sharing"
 )
 
-// Round 1 of the secret resharing protocol
+// Round 2 of the secret resharing protocol
 // https://conduition.io/cryptography/shamir-resharing/
 //
 // Inputs:
@@ -26,6 +26,12 @@ import (
 // 3. Set VerificationKey = Commitments[0]
 
 // ResharingRound2 is called by a new participant who will hold a new key share
+// to generate its new secret share and commitments.
+//
+// @param oldThreshold - orginal threshold t
+// @param bcast - contains broadcast data from all participants holding old secret shares
+// @param p2psend - contains all shares sent to the current new participant
+// @return error - nil if successful, otherwise an error
 func (dp *DkgParticipant) ResharingRound2(
 	oldThreshold int,
 	bcast map[uint32]*ResharingBcast,

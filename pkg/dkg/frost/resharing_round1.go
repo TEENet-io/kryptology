@@ -31,15 +31,18 @@ type ResharingBcast struct {
 type ResharingP2PSend = map[uint32]*sharing.ShamirShare
 
 // ResharingRound1 is called by each participants who hold the old key shares
-func (dp *DkgParticipant) ResharingRound1(newThreshold int, newParticipants ...uint32) (*ResharingBcast, ResharingP2PSend, error) {
-	// Make sure dkg participant is not empty
-	if dp == nil || dp.Curve == nil {
+func (dp *DkgParticipant) ResharingRound1(
+	newThreshold int, newParticipants ...uint32,
+) (*ResharingBcast, ResharingP2PSend, error) {
+	// Make sure the participant and its required fields are not empty
+	if dp == nil || dp.Curve == nil || dp.SkShare == nil || dp.Commitments == nil {
 		return nil, nil, internal.ErrNilArguments
 	}
 
 	curve := dp.Curve
 
-	// Randomly sample polynomial with degree (threshold - 1) and constant set to dp.SkShare (z_i)
+	// Randomly sample coefficients { a(i,k) }_{k=1}^{t'-1} of a polynomial with degree (threshold - 1)
+	// with its constant set to dp.SkShare (z_i)
 	poly := &sharing.Polynomial{
 		Coefficients: make([]curves.Scalar, newThreshold),
 	}

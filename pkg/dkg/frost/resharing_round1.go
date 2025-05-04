@@ -2,6 +2,7 @@ package frost
 
 import (
 	crand "crypto/rand"
+	"fmt"
 
 	"github.com/coinbase/kryptology/internal"
 	"github.com/coinbase/kryptology/pkg/core/curves"
@@ -34,56 +35,46 @@ type ResharingP2PSend = map[uint32]*sharing.ShamirShare
 // ResharingRound1 is called by a participant who hold a valid secret share
 // before resharing to generate inputs for resharing round 2.
 //
-// @param newThreshold - new threshold t'
-// @param newParticipants - ids of new participants who will hold new secret shares
+// @param rp - participant who participates in the resharing protocol
 // @return bcast - contains commitments of the randomly sampled polynomial coefficients, As,
 // and the commitments of the original global polynomial coefficients, PHIs
 // @return p2psend - contains shares to be sent to the new participants privately
-func (dp *DkgParticipant) ResharingRound1(
-	newThreshold int, newParticipants ...uint32,
-) (*ResharingBcast, ResharingP2PSend, error) {
+func (r *Resharing) ResharingRound1(rp *DkgParticipant) (*ResharingBcast, ResharingP2PSend, error) {
 	// Make sure the participant and its required fields are not empty
-	if dp == nil || dp.Curve == nil || dp.SkShare == nil || dp.Commitments == nil {
+	if r == nil || r.curve == nil || rp == nil || rp.SkShare == nil || rp.Commitments == nil {
 		return nil, nil, internal.ErrNilArguments
 	}
 
-	curve := dp.Curve
+	// Check if rp.Id is in r.ResharingParticipantIDs
+	found := false
+	for _, id := range r.ResharingParticipantIDs {
+		if id == rp.Id {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, nil, fmt.Errorf("participant %d is not in the resharing participant IDs", rp.Id)
+	}
 
-	// Randomly sample coefficients { a(i,k) }_{k=1}^{t'-1} of a polynomial with degree (threshold - 1)
-	// with its constant set to dp.SkShare (z_i)
-	poly := &sharing.Polynomial{
-		Coefficients: make([]curves.Scalar, newThreshold),
-	}
-	poly.Coefficients[0] = dp.SkShare.Clone()
-	for k := 1; k < newThreshold; k++ {
-		poly.Coefficients[k] = curve.Scalar.Random(crand.Reader)
+	if r.curve.Name != rp.Curve.Name {
+		return nil, nil, fmt.Errorf("curve mismatch: %s != %s", r.curve.Name, rp.Curve.Name)
 	}
 
-	// Compute commitments for the coefficients
-	As := make([]curves.Point, newThreshold)
-	As[0] = curve.ScalarBaseMult(dp.SkShare)
-	for k := 1; k < newThreshold; k++ {
-		As[k] = curve.ScalarBaseMult(poly.Coefficients[k])
+	verifier, shares, err := r.feldman.Split(rp.SkShare, crand.Reader)
+	if err != nil {
+		return nil, nil, err
 	}
+
 	bcast := &ResharingBcast{
-		As:   As,
-		PHIs: dp.Commitments,
+		As:   verifier.Commitments,
+		PHIs: rp.Commitments,
 	}
 
 	// Compute shares for new participants
-	p2psend := make(ResharingP2PSend, len(newParticipants))
-	for _, j := range newParticipants {
-		share := poly.Evaluate(curve.Scalar.New(int(j)))
-
-		p2psend[j] = &sharing.ShamirShare{
-			Id:    j,
-			Value: share.Bytes(),
-		}
-
-		v, _ := EvalCommitmentPoly(curve, As, curve.Scalar.New(int(j)))
-		if !v.Equal(curve.ScalarBaseMult(share)) {
-			panic("invalid share")
-		}
+	p2psend := make(ResharingP2PSend, len(r.NewParticipantIDs))
+	for id, value := range shares {
+		p2psend[id] = value
 	}
 
 	return bcast, p2psend, nil

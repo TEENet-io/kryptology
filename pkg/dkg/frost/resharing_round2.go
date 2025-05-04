@@ -28,29 +28,47 @@ import (
 // ResharingRound2 is called by a new participant who will hold a new key share
 // to generate its new secret share and commitments.
 //
+// @param dp - new participant who will hold a new secret share
 // @param oldThreshold - orginal threshold t
 // @param bcast - contains broadcast data from all participants holding old secret shares
 // @param p2psend - contains all shares sent to the current new participant
 // @return error - nil if successful, otherwise an error
-func (dp *DkgParticipant) ResharingRound2(
-	oldThreshold int,
+func (r *Resharing) ResharingRound2(
+	np *DkgParticipant,
 	bcast map[uint32]*ResharingBcast,
 	p2psend map[uint32]*sharing.ShamirShare,
 ) error {
-	if dp == nil || dp.Curve == nil {
+	if r == nil || r.curve == nil || bcast == nil || p2psend == nil || np == nil {
 		return internal.ErrNilArguments
 	}
 
-	if dp.Threshold == 0 || len(dp.otherParticipantShares) == 0 || dp.Threshold > uint32(len(dp.otherParticipantShares))+1 {
-		return fmt.Errorf("invalid threshold")
+	if r.curve.Name != np.Curve.Name {
+		return fmt.Errorf("curve mismatch: %s != %s", r.curve.Name, np.Curve.Name)
 	}
 
-	if len(bcast) != oldThreshold || len(p2psend) != oldThreshold {
-		return fmt.Errorf("invalid inputs")
+	// Check if np.Id is in r.NewParticipantIDs
+	found := false
+	for _, id := range r.NewParticipantIDs {
+		if id == np.Id {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("participant %d is not in the new participant IDs", np.Id)
+	}
+
+	if len(bcast) != len(r.ResharingParticipantIDs) {
+		return fmt.Errorf("invalid broadcast data length")
+	}
+
+	if len(p2psend) != len(r.ResharingParticipantIDs) {
+		return fmt.Errorf("invalid p2p data length")
 	}
 
 	for _, data := range bcast {
-		if data == nil || len(data.As) != int(dp.Threshold)-1 || len(data.PHIs) != oldThreshold {
+		if data == nil || data.As == nil || data.PHIs == nil ||
+			len(data.As) != int(r.Threshold) || len(data.PHIs) > len(bcast) {
 			return fmt.Errorf("invalid broadcast data")
 		}
 	}
@@ -61,13 +79,9 @@ func (dp *DkgParticipant) ResharingRound2(
 		}
 	}
 
-	curve := dp.Curve
-
-	// Define the group S of participants holding the old key shares
-	S := make([]uint32, 0, len(bcast))
-	for id := range bcast {
-		S = append(S, id)
-	}
+	curve := r.curve
+	S := r.ResharingParticipantIDs
+	j := np.Id
 
 	// Shares computed by participants in S
 	Gj := make(map[uint32]curves.Scalar, len(S))
@@ -83,26 +97,23 @@ func (dp *DkgParticipant) ResharingRound2(
 			phi0 = bcast[i].PHIs[0]
 		}
 
-		// Verify the validity of inputs
-		// 		p2psend[i] * G == sum_{k=1}^{t-1} (bcast[i].PHIs[k] * i^k)
-		// 							+ sum_{k=1}^{t'-1} (bcast[i].As[k] * dp.Id^k)
 		A0, err := EvalCommitmentPoly(curve, bcast[i].PHIs, curve.Scalar.New(int(i)))
 		if err != nil {
 			return err
 		}
 		As := bcast[i].As
 		As[0] = A0
-		v, err := EvalCommitmentPoly(curve, As, curve.Scalar.New(int(dp.Id)))
+		v, err := EvalCommitmentPoly(curve, As, curve.Scalar.New(int(j)))
 		if err != nil {
 			return err
 		}
 		if !v.Equal(curve.ScalarBaseMult(gj)) {
-			return fmt.Errorf("invalid share g_%d(%d)", i, int(dp.Id))
+			return fmt.Errorf("invalid share g_%d[%d]", i, int(j))
 		}
 	}
 
 	// Get the lagrange coefficients
-	scheme, err := sharing.NewShamir(uint32(oldThreshold), uint32(len(S)), curve)
+	scheme, err := sharing.NewShamir(uint32(len(S)), uint32(len(S)), curve)
 	if err != nil {
 		return err
 	}
@@ -121,7 +132,7 @@ func (dp *DkgParticipant) ResharingRound2(
 	// Compute the new commiments
 	// 		Commitments[k] = \sum_{i \in S} LagrangeCoef_i^S * A(i,k)
 	commitments := append([]curves.Point{}, phi0)
-	for k := 1; k < int(dp.Threshold); k++ {
+	for k := 1; k < int(r.Threshold); k++ {
 		commitment := curve.Point.Identity()
 		for _, i := range S {
 			commitment = commitment.Add(bcast[i].As[k].Mul(lCoeffs[i]))
@@ -129,7 +140,7 @@ func (dp *DkgParticipant) ResharingRound2(
 		commitments = append(commitments, commitment)
 	}
 
-	v, err := EvalCommitmentPoly(curve, commitments, curve.Scalar.New(int(dp.Id)))
+	v, err := EvalCommitmentPoly(curve, commitments, curve.Scalar.New(int(j)))
 	if err != nil {
 		return err
 	}
@@ -137,10 +148,10 @@ func (dp *DkgParticipant) ResharingRound2(
 		panic("invalid share")
 	}
 
-	dp.Commitments = commitments
-	dp.SkShare = skShare.Clone()
-	dp.VerificationKey = commitments[0]
-	dp.VkShare = curve.ScalarBaseMult(skShare)
+	np.Commitments = commitments
+	np.SkShare = skShare.Clone()
+	np.VerificationKey = commitments[0]
+	np.VkShare = curve.ScalarBaseMult(skShare)
 
 	return nil
 }

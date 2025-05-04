@@ -3,6 +3,7 @@ package frost
 import (
 	"testing"
 
+	"github.com/coinbase/kryptology/internal"
 	"github.com/coinbase/kryptology/pkg/sharing"
 	"github.com/stretchr/testify/require"
 )
@@ -11,18 +12,22 @@ import (
 func dkg(t *testing.T, threshold, limit int) map[uint32]*DkgParticipant {
 	// Init participants
 	participants := make(map[uint32]*DkgParticipant, limit)
-	for i := 1; i <= limit; i++ {
+
+	IDs, _ := internal.SampleUniqueUint32s(limit, 100, 2000)
+
+	for i := 0; i < limit; i++ {
+		idi := IDs[i]
 		otherIds := make([]uint32, 0, limit-1)
-		for j := 1; j <= limit; j++ {
+		for j := 0; j < limit; j++ {
 			if i == j {
 				continue
 			}
-			otherIds = append(otherIds, uint32(j))
+			otherIds = append(otherIds, IDs[j])
 		}
 
-		p, err := NewDkgParticipant(uint32(i), uint32(threshold), Ctx, testCurve, otherIds...)
+		p, err := NewDkgParticipant(idi, uint32(threshold), Ctx, testCurve, otherIds...)
 		require.NoError(t, err)
-		participants[uint32(i)] = p
+		participants[idi] = p
 	}
 
 	// DkG Round 1
@@ -52,12 +57,19 @@ func dkg(t *testing.T, threshold, limit int) map[uint32]*DkgParticipant {
 }
 
 func verifyDKG(t *testing.T, participants map[uint32]*DkgParticipant) {
-	shares := []*sharing.ShamirShare{}
-	thres := len(participants[1].Commitments)
-	limit := len(participants[1].otherParticipantShares) + 1
+	id0 := uint32(0)
+	for id := range participants {
+		id0 = id
+		break
+	}
+	p0 := participants[id0]
 
-	for id := 1; id <= thres; id++ {
-		p := participants[uint32(id)]
+	shares := []*sharing.ShamirShare{}
+	thres := p0.Threshold
+	limit := p0.Limit()
+	curve := p0.Curve
+
+	for id, p := range participants {
 		share := &sharing.ShamirShare{
 			Id:    uint32(id),
 			Value: p.SkShare.Bytes(),
@@ -66,16 +78,12 @@ func verifyDKG(t *testing.T, participants map[uint32]*DkgParticipant) {
 	}
 
 	// Combine shares to get the secret and verify the public key
-	scheme, err := sharing.NewShamir(
-		uint32(thres),
-		uint32(limit),
-		participants[1].Curve,
-	)
+	scheme, err := sharing.NewShamir(thres, limit, curve)
 	require.NoError(t, err)
 	sk, err := scheme.Combine(shares...)
 	require.NoError(t, err)
-	pub := participants[1].Curve.ScalarBaseMult(sk)
-	require.True(t, pub.Equal(participants[1].VerificationKey))
+	pub := curve.ScalarBaseMult(sk)
+	require.True(t, pub.Equal(p0.VerificationKey))
 
 	// Check that all participants have the same public key
 	for _, p := range participants {
@@ -98,6 +106,22 @@ func TestDKG(t *testing.T) {
 	verifyDKG(t, participants)
 }
 
+func TestNilArgs(t *testing.T) {
+	_, err := NewResharing(3, nil, []uint32{1, 2, 3}, []uint32{4, 5, 6})
+	require.Equal(t, err, internal.ErrNilArguments)
+	_, err = NewResharing(3, testCurve, []uint32{}, []uint32{4, 5, 6})
+	require.Equal(t, err, internal.ErrNilArguments)
+	_, err = NewResharing(3, testCurve, []uint32{1, 2, 3}, []uint32{})
+	require.Equal(t, err, internal.ErrNilArguments)
+}
+
+func TestDuplicateIDs(t *testing.T) {
+	_, err := NewResharing(3, testCurve, []uint32{1, 2, 3, 2}, []uint32{1, 5, 6})
+	require.Error(t, err)
+	_, err = NewResharing(3, testCurve, []uint32{1, 2, 3}, []uint32{1, 2, 3, 3})
+	require.Error(t, err)
+}
+
 func TestResharing(t *testing.T) {
 	var (
 		threshold = 3
@@ -113,25 +137,38 @@ func TestResharing(t *testing.T) {
 	participants := dkg(t, threshold, limit)
 	verifyDKG(t, participants)
 
+	var id0 uint32
+	for id := range participants {
+		id0 = id
+		break
+	}
+	Ids := participants[id0].Ids()
+
+	resharingParticipantIDs := Ids[:newThreshold]
+	newParticipantIDs, _ := internal.SampleUniqueUint32s(newLimit, 100, 10000)
+
+	r, err := NewResharing(uint32(newThreshold), testCurve, resharingParticipantIDs, newParticipantIDs)
+	require.NoError(t, err)
+
 	///////////////////////
 	// Resharing Round 1
 	///////////////////////
-	p2psend := make(map[uint32]ResharingP2PSend, len(participants))
-	bcast := make(map[uint32]*ResharingBcast, len(participants))
-	newParticipants := make([]uint32, newLimit)
-	for i := 1; i <= newLimit; i++ {
-		newParticipants[i-1] = uint32(i)
-	}
-	for _, p := range participants {
+	p2pRnd1Out := make(map[uint32]ResharingP2PSend, len(resharingParticipantIDs))
+	bcastRnd1Out := make(map[uint32]*ResharingBcast, len(resharingParticipantIDs))
+
+	// Perform round 1
+	for _, id := range resharingParticipantIDs {
+		p := participants[id]
 		id := p.Id
-		bcast[id], p2psend[id], err = p.ResharingRound1(newThreshold, newParticipants...)
+		bcastRnd1Out[id], p2pRnd1Out[id], err = r.ResharingRound1(p)
 		require.NoError(t, err)
 	}
 
 	// Verify that all PHIs are the same
-	for _, bc := range bcast {
-		for k := range participants[1].Commitments {
-			require.True(t, bc.PHIs[k].Equal(participants[1].Commitments[k]))
+	refId := resharingParticipantIDs[0]
+	for _, bc := range bcastRnd1Out {
+		for k, commit := range participants[refId].Commitments {
+			require.True(t, bc.PHIs[k].Equal(commit))
 		}
 	}
 
@@ -139,49 +176,45 @@ func TestResharing(t *testing.T) {
 	// Resharing Round 2
 	///////////////////////
 	// Init new participants
-	resharingParticipants := make(map[uint32]*DkgParticipant, newLimit)
-	for i := 1; i <= newLimit; i++ {
-		otherIds := make([]uint32, 0, newLimit-1)
-		for j := 1; j <= newLimit; j++ {
+	newParticipants := make(map[uint32]*DkgParticipant, newLimit)
+	for _, i := range newParticipantIDs {
+		otherIds := []uint32{}
+		for _, j := range newParticipantIDs {
 			if i == j {
 				continue
 			}
-			otherIds = append(otherIds, uint32(j))
+			otherIds = append(otherIds, j)
 		}
 
-		p, err := NewDkgParticipant(uint32(i), uint32(newThreshold), Ctx, testCurve, otherIds...)
+		p, err := NewDkgParticipant(i, uint32(newThreshold), Ctx, testCurve, otherIds...)
 		require.NoError(t, err)
-		resharingParticipants[uint32(i)] = p
-	}
-
-	// Get S = {ids of participants}
-	S := make([]uint32, 0, len(participants))
-	for id := range participants {
-		S = append(S, id)
+		newParticipants[i] = p
 	}
 
 	// Perform round 2
-	for id, p := range resharingParticipants {
-		// prepare p2psend for p
-		p2p := make(map[uint32]*sharing.ShamirShare, len(S))
-		for _, i := range S {
-			p2p[i] = p2psend[i][id]
+	for id, p := range newParticipants {
+		// prepare inputs for resharing round 2
+		p2pRnd2In := make(map[uint32]*sharing.ShamirShare, len(resharingParticipantIDs))
+		for _, i := range resharingParticipantIDs {
+			p2pRnd2In[i] = p2pRnd1Out[i][id]
 		}
 
-		err := p.ResharingRound2(threshold, bcast, p2p)
+		err := r.ResharingRound2(p, bcastRnd1Out, p2pRnd2In)
 		require.NoError(t, err)
 	}
 
 	// Verify that commitments are the same
-	commitments := resharingParticipants[1].Commitments
-	for _, p := range resharingParticipants {
-		for k := 0; k < newThreshold; k++ {
-			require.True(t, commitments[k].Equal(p.Commitments[k]))
+	commitments := newParticipants[r.NewParticipantIDs[0]].Commitments
+	for _, p := range newParticipants {
+		for k, c := range commitments {
+			require.True(t, p.Commitments[k].Equal(c))
 		}
 	}
 
-	verifyDKG(t, resharingParticipants)
+	verifyDKG(t, newParticipants)
 
 	// Verify that the new public key remains the same
-	require.True(t, resharingParticipants[1].VerificationKey.Equal(resharingParticipants[1].VerificationKey))
+	p1 := newParticipants[r.NewParticipantIDs[0]]
+	p2 := participants[resharingParticipantIDs[0]]
+	require.True(t, p1.VerificationKey.Equal(p2.VerificationKey))
 }

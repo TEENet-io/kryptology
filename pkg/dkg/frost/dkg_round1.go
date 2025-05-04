@@ -137,7 +137,7 @@ func (dp *DkgParticipant) Round1(secret []byte) (*Round1Bcast, Round1P2PSend, er
 	// Step 7 - P2PSend f_i(j) to each participant Pj and keep (i, f_j(i)) for himself
 	p2pSend := make(Round1P2PSend, len(dp.otherParticipantShares))
 	for id := range dp.otherParticipantShares {
-		p2pSend[id] = shares[id-1]
+		p2pSend[id] = shares[id]
 	}
 
 	// Update internal state

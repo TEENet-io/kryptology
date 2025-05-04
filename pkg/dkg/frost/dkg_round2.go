@@ -113,7 +113,7 @@ func (dp *DkgParticipant) Round2(bcast map[uint32]*Round1Bcast, p2psend map[uint
 		}
 	}
 
-	sk, err := dp.Curve.Scalar.SetBytes(dp.secretShares[dp.Id-1].Value)
+	sk, err := dp.Curve.Scalar.SetBytes(dp.secretShares[dp.Id].Value)
 	if err != nil {
 		return nil, err
 	}

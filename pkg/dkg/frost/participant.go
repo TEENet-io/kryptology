@@ -33,7 +33,7 @@ type DkgParticipant struct {
 
 	feldman      *sharing.Feldman
 	verifiers    *sharing.FeldmanVerifier
-	secretShares []*sharing.ShamirShare
+	secretShares map[uint32]*sharing.ShamirShare
 	ctx          byte
 }
 type dkgParticipantData struct {
@@ -46,11 +46,14 @@ func NewDkgParticipant(id, threshold uint32, ctx string, curve *curves.Curve, ot
 	if curve == nil || len(otherParticipants) == 0 {
 		return nil, internal.ErrNilArguments
 	}
+
 	limit := uint32(len(otherParticipants)) + 1
-	feldman, err := sharing.NewFeldman(threshold, limit, curve)
+
+	feldman, err := sharing.NewFeldman(threshold, limit, curve, append(otherParticipants, id)...)
 	if err != nil {
 		return nil, err
 	}
+
 	otherParticipantShares := make(map[uint32]*dkgParticipantData, len(otherParticipants))
 	for _, id := range otherParticipants {
 		otherParticipantShares[id] = &dkgParticipantData{
@@ -72,18 +75,19 @@ func NewDkgParticipant(id, threshold uint32, ctx string, curve *curves.Curve, ot
 	}, nil
 }
 
-func (dp *DkgParticipant) Limit() int {
+func (dp *DkgParticipant) Limit() uint32 {
 	if dp == nil || dp.Curve == nil {
 		return 0
 	}
-	return len(dp.otherParticipantShares) + 1
+	return uint32(len(dp.otherParticipantShares) + 1)
 }
 
-func (dp *DkgParticipant) OtherParticipantIds() []uint32 {
+func (dp *DkgParticipant) Ids() []uint32 {
 	if dp == nil || dp.Curve == nil {
 		return nil
 	}
-	ids := make([]uint32, 0, len(dp.otherParticipantShares))
+	ids := make([]uint32, 0, len(dp.otherParticipantShares)+1)
+	ids = append(ids, dp.Id)
 	for id := range dp.otherParticipantShares {
 		ids = append(ids, id)
 	}

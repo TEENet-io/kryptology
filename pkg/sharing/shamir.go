@@ -125,13 +125,13 @@ func (s Shamir) Combine(shares ...*ShamirShare) (curves.Scalar, error) {
 		if err != nil {
 			return nil, err
 		}
-		if share.Id > s.limit {
-			return nil, fmt.Errorf("invalid share identifier")
-		}
+
+		// Check duplication
 		if _, in := dups[share.Id]; in {
 			return nil, fmt.Errorf("duplicate share")
 		}
 		dups[share.Id] = true
+
 		ys[i], _ = s.curve.Scalar.SetBytes(share.Value)
 		xs[i] = s.curve.Scalar.New(int(share.Id))
 	}

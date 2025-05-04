@@ -76,12 +76,6 @@ func TestShamirCombineBadIdentifier(t *testing.T) {
 	}
 	_, err = scheme.Combine(shares...)
 	require.NotNil(t, err)
-	shares[0] = &ShamirShare{
-		Id:    4,
-		Value: curve.NewScalar().New(3).Bytes(),
-	}
-	_, err = scheme.Combine(shares...)
-	require.NotNil(t, err)
 }
 
 func TestShamirCombineSingle(t *testing.T) {

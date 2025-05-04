@@ -44,9 +44,10 @@ func (v FeldmanVerifier) Verify(share *ShamirShare) error {
 type Feldman struct {
 	Threshold, Limit uint32
 	Curve            *curves.Curve
+	IDs              []uint32
 }
 
-func NewFeldman(threshold, limit uint32, curve *curves.Curve) (*Feldman, error) {
+func NewFeldman(threshold, limit uint32, curve *curves.Curve, IDs ...uint32) (*Feldman, error) {
 	if limit < threshold {
 		return nil, fmt.Errorf("limit cannot be less than threshold")
 	}
@@ -59,19 +60,48 @@ func NewFeldman(threshold, limit uint32, curve *curves.Curve) (*Feldman, error) 
 	if curve == nil {
 		return nil, fmt.Errorf("invalid curve")
 	}
-	return &Feldman{threshold, limit, curve}, nil
+
+	if len(IDs) > 0 {
+		if len(IDs) != int(limit) {
+			return nil, fmt.Errorf("length of IDs must be equal to limit")
+		}
+		idMap := make(map[uint32]bool)
+		for _, id := range IDs {
+			if id == 0 {
+				return nil, fmt.Errorf("id cannot be 0")
+			}
+			if idMap[id] {
+				return nil, fmt.Errorf("duplicate id found: %d", id)
+			}
+			idMap[id] = true
+		}
+	}
+
+	if len(IDs) == 0 {
+		IDs = make([]uint32, limit)
+		for i := range IDs {
+			IDs[i] = uint32(i + 1)
+		}
+	}
+
+	return &Feldman{threshold, limit, curve, IDs}, nil
 }
 
-func (f Feldman) Split(secret curves.Scalar, reader io.Reader) (*FeldmanVerifier, []*ShamirShare, error) {
+func (f Feldman) Split(secret curves.Scalar, reader io.Reader) (*FeldmanVerifier, map[uint32]*ShamirShare, error) {
 	if secret.IsZero() {
 		return nil, nil, fmt.Errorf("invalid secret")
 	}
-	shamir := &Shamir{
-		threshold: f.Threshold,
-		limit:     f.Limit,
-		curve:     f.Curve,
+
+	poly := new(Polynomial).Init(secret, f.Threshold, reader)
+	shares := make(map[uint32]*ShamirShare, f.Limit)
+	for _, id := range f.IDs {
+		x := f.Curve.Scalar.New(int(id))
+		shares[id] = &ShamirShare{
+			Id:    id,
+			Value: poly.Evaluate(x).Bytes(),
+		}
 	}
-	shares, poly := shamir.getPolyAndShares(secret, reader)
+
 	verifier := new(FeldmanVerifier)
 	verifier.Commitments = make([]curves.Point, f.Threshold)
 	for i := range verifier.Commitments {

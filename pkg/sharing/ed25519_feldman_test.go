@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/coinbase/kryptology/internal"
 	"github.com/coinbase/kryptology/pkg/core/curves"
 )
 
@@ -72,34 +73,36 @@ func TestEd25519FeldmanCombineBadIdentifier(t *testing.T) {
 	}
 	_, err = scheme.Combine(shares...)
 	require.NotNil(t, err)
-	shares[0] = &ShamirShare{
-		Id:    4,
-		Value: testCurve.Scalar.New(3).Bytes(),
-	}
-	_, err = scheme.Combine(shares...)
-	require.NotNil(t, err)
 }
 
-func TestEd25519FeldmanCombineSingle(t *testing.T) {
+func TestEd25519FeldmanCombineSingleWithDefaultIds(t *testing.T) {
 	scheme, err := NewFeldman(2, 3, testCurve)
 	require.Nil(t, err)
 	require.NotNil(t, scheme)
 
 	secret := testCurve.Scalar.Hash([]byte("test"))
-	verifiers, shares, err := scheme.Split(secret, crand.Reader)
+	verifiers, shareMap, err := scheme.Split(secret, crand.Reader)
 	require.Nil(t, err)
-	require.NotNil(t, shares)
-	for _, s := range shares {
+	require.NotNil(t, shareMap)
+	for _, s := range shareMap {
 		err = verifiers.Verify(s)
 		require.Nil(t, err)
 	}
+
+	shares := make([]*ShamirShare, 0, len(shareMap))
+	for _, s := range shareMap {
+		shares = append(shares, s)
+	}
+
 	secret2, err := scheme.Combine(shares...)
 	require.Nil(t, err)
 	require.Equal(t, secret2, secret)
 }
 
 func TestEd25519FeldmanAllCombinations(t *testing.T) {
-	scheme, err := NewFeldman(3, 5, testCurve)
+	IDs, _ := internal.SampleUniqueUint32s(5, 1, 100)
+
+	scheme, err := NewFeldman(3, 5, testCurve, IDs...)
 	require.Nil(t, err)
 	require.NotNil(t, scheme)
 
@@ -111,13 +114,14 @@ func TestEd25519FeldmanAllCombinations(t *testing.T) {
 	}
 	require.Nil(t, err)
 	require.NotNil(t, shares)
+
 	// There are 5*4*3 possible combinations
-	for i := 0; i < 5; i++ {
-		for j := 0; j < 5; j++ {
+	for _, i := range IDs {
+		for _, j := range IDs {
 			if i == j {
 				continue
 			}
-			for k := 0; k < 5; k++ {
+			for _, k := range IDs {
 				if i == k || j == k {
 					continue
 				}

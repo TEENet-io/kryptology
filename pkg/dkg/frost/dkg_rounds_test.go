@@ -157,7 +157,7 @@ func TestFullDkgRoundsWorks(t *testing.T) {
 	// Running round 2
 	round2Out1, _ := p1.Round2(bcast, p2p1)
 	round2Out2, _ := p2.Round2(bcast, p2p2)
-	require.Equal(t, round2Out1.VerificationKey, round2Out2.VerificationKey)
+	require.Equal(t, round2Out1.Commitments[0], round2Out2.Commitments[0])
 	s, _ := sharing.NewShamir(2, 2, testCurve)
 	sk, err := s.Combine(&sharing.ShamirShare{Id: p1.Id, Value: p1.SkShare.Bytes()},
 		&sharing.ShamirShare{Id: p2.Id, Value: p2.SkShare.Bytes()})

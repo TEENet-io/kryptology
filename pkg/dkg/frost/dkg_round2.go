@@ -17,8 +17,8 @@ import (
 // Round2Bcast are values that are broadcast to all other participants
 // after round2 completes
 type Round2Bcast struct {
-	VerificationKey curves.Point
-	VkShare         curves.Point
+	Commitments []curves.Point
+	VkShare     curves.Point
 }
 
 // Round2 implements dkg round 2 of FROST
@@ -163,7 +163,7 @@ func (dp *DkgParticipant) Round2(bcast map[uint32]*Round1Bcast, p2psend map[uint
 
 	// Broadcast
 	return &Round2Bcast{
-		vk,
+		dp.Commitments,
 		dp.VkShare,
 	}, nil
 }

@@ -200,7 +200,7 @@ func round2(participants map[uint32]*dkg.DkgParticipant,
 		if err != nil {
 			panic(err)
 		}
-		verificationKey = rnd2Out.VerificationKey
+		verificationKey = rnd2Out.Commitments[0]
 		share := &sharing.ShamirShare{
 			Id:    id,
 			Value: participants[id].SkShare.Bytes(),

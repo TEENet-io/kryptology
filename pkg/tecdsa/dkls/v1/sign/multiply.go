@@ -16,10 +16,10 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/sha3"
 
-	"github.com/coinbase/kryptology/internal"
-	"github.com/coinbase/kryptology/pkg/core/curves"
-	"github.com/coinbase/kryptology/pkg/ot/base/simplest"
-	"github.com/coinbase/kryptology/pkg/ot/extension/kos"
+	"github.com/TEENet-io/kryptology/internal"
+	"github.com/TEENet-io/kryptology/pkg/core/curves"
+	"github.com/TEENet-io/kryptology/pkg/ot/base/simplest"
+	"github.com/TEENet-io/kryptology/pkg/ot/extension/kos"
 )
 
 // This implements the Multiplication protocol of DKLs, protocol 5. https://eprint.iacr.org/2018/499.pdf

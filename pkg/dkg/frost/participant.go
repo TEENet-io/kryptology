@@ -10,9 +10,9 @@ package frost
 import (
 	"strconv"
 
-	"github.com/coinbase/kryptology/internal"
-	"github.com/coinbase/kryptology/pkg/core/curves"
-	"github.com/coinbase/kryptology/pkg/sharing"
+	"github.com/TEENet-io/kryptology/internal"
+	"github.com/TEENet-io/kryptology/pkg/core/curves"
+	"github.com/TEENet-io/kryptology/pkg/sharing"
 )
 
 type DkgParticipant struct {

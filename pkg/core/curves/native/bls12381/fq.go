@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/coinbase/kryptology/pkg/core/curves/native"
+	"github.com/TEENet-io/kryptology/pkg/core/curves/native"
 )
 
 type Fq [native.FieldLimbs]uint64

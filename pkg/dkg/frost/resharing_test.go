@@ -3,8 +3,8 @@ package frost
 import (
 	"testing"
 
-	"github.com/coinbase/kryptology/internal"
-	"github.com/coinbase/kryptology/pkg/sharing"
+	"github.com/TEENet-io/kryptology/internal"
+	"github.com/TEENet-io/kryptology/pkg/sharing"
 	"github.com/stretchr/testify/require"
 )
 

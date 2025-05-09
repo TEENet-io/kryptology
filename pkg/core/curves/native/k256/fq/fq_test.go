@@ -14,8 +14,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/coinbase/kryptology/internal"
-	"github.com/coinbase/kryptology/pkg/core/curves/native"
+	"github.com/TEENet-io/kryptology/internal"
+	"github.com/TEENet-io/kryptology/pkg/core/curves/native"
 )
 
 func TestFqSetOne(t *testing.T) {

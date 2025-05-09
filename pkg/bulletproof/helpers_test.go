@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/coinbase/kryptology/pkg/core/curves"
+	"github.com/TEENet-io/kryptology/pkg/core/curves"
 )
 
 func TestInnerProductHappyPath(t *testing.T) {

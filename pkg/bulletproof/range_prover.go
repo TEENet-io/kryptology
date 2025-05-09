@@ -14,7 +14,7 @@ import (
 	"github.com/gtank/merlin"
 	"github.com/pkg/errors"
 
-	"github.com/coinbase/kryptology/pkg/core/curves"
+	"github.com/TEENet-io/kryptology/pkg/core/curves"
 )
 
 // RangeProver is the struct used to create RangeProofs

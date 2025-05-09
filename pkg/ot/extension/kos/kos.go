@@ -18,8 +18,8 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/sha3"
 
-	"github.com/coinbase/kryptology/pkg/core/curves"
-	"github.com/coinbase/kryptology/pkg/ot/base/simplest"
+	"github.com/TEENet-io/kryptology/pkg/core/curves"
+	"github.com/TEENet-io/kryptology/pkg/ot/base/simplest"
 )
 
 const (

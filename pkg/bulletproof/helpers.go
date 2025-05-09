@@ -9,7 +9,7 @@ package bulletproof
 import (
 	"github.com/pkg/errors"
 
-	"github.com/coinbase/kryptology/pkg/core/curves"
+	"github.com/TEENet-io/kryptology/pkg/core/curves"
 )
 
 // innerProduct takes two lists of scalars (a, b) and performs the dot product returning a single scalar.

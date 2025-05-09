@@ -7,8 +7,8 @@
 package mina
 
 import (
-	"github.com/coinbase/kryptology/pkg/core/curves/native/pasta/fp"
-	"github.com/coinbase/kryptology/pkg/core/curves/native/pasta/fq"
+	"github.com/TEENet-io/kryptology/pkg/core/curves/native/pasta/fp"
+	"github.com/TEENet-io/kryptology/pkg/core/curves/native/pasta/fq"
 )
 
 type Context struct {

@@ -13,11 +13,11 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/coinbase/kryptology/internal"
-	"github.com/coinbase/kryptology/pkg/core/curves/native"
-	p256n "github.com/coinbase/kryptology/pkg/core/curves/native/p256"
-	"github.com/coinbase/kryptology/pkg/core/curves/native/p256/fp"
-	"github.com/coinbase/kryptology/pkg/core/curves/native/p256/fq"
+	"github.com/TEENet-io/kryptology/internal"
+	"github.com/TEENet-io/kryptology/pkg/core/curves/native"
+	p256n "github.com/TEENet-io/kryptology/pkg/core/curves/native/p256"
+	"github.com/TEENet-io/kryptology/pkg/core/curves/native/p256/fp"
+	"github.com/TEENet-io/kryptology/pkg/core/curves/native/p256/fq"
 )
 
 var oldP256InitOnce sync.Once

@@ -15,8 +15,8 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/stretchr/testify/require"
 
-	tt "github.com/coinbase/kryptology/internal"
-	"github.com/coinbase/kryptology/pkg/core"
+	tt "github.com/TEENet-io/kryptology/internal"
+	"github.com/TEENet-io/kryptology/pkg/core"
 )
 
 func TestIsIdentity(t *testing.T) {

@@ -7,13 +7,13 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/coinbase/kryptology/pkg/core/curves"
-	"github.com/coinbase/kryptology/pkg/core/protocol"
-	"github.com/coinbase/kryptology/pkg/ot/base/simplest"
-	"github.com/coinbase/kryptology/pkg/ot/extension/kos"
-	v0 "github.com/coinbase/kryptology/pkg/tecdsa/dkls/v0"
-	"github.com/coinbase/kryptology/pkg/tecdsa/dkls/v1/dkg"
-	"github.com/coinbase/kryptology/pkg/zkp/schnorr"
+	"github.com/TEENet-io/kryptology/pkg/core/curves"
+	"github.com/TEENet-io/kryptology/pkg/core/protocol"
+	"github.com/TEENet-io/kryptology/pkg/ot/base/simplest"
+	"github.com/TEENet-io/kryptology/pkg/ot/extension/kos"
+	v0 "github.com/TEENet-io/kryptology/pkg/tecdsa/dkls/v0"
+	"github.com/TEENet-io/kryptology/pkg/tecdsa/dkls/v1/dkg"
+	"github.com/TEENet-io/kryptology/pkg/zkp/schnorr"
 )
 
 const payloadKey = "direct"

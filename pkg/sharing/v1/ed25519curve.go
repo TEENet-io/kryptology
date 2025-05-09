@@ -13,8 +13,8 @@ import (
 
 	ed "filippo.io/edwards25519"
 
-	"github.com/coinbase/kryptology/internal"
-	"github.com/coinbase/kryptology/pkg/core/curves"
+	"github.com/TEENet-io/kryptology/internal"
+	"github.com/TEENet-io/kryptology/pkg/core/curves"
 )
 
 var ed25519Initonce sync.Once

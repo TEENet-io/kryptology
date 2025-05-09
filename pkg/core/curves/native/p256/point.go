@@ -3,9 +3,9 @@ package p256
 import (
 	"sync"
 
-	"github.com/coinbase/kryptology/internal"
-	"github.com/coinbase/kryptology/pkg/core/curves/native"
-	"github.com/coinbase/kryptology/pkg/core/curves/native/p256/fp"
+	"github.com/TEENet-io/kryptology/internal"
+	"github.com/TEENet-io/kryptology/pkg/core/curves/native"
+	"github.com/TEENet-io/kryptology/pkg/core/curves/native/p256/fp"
 )
 
 var (

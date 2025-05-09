@@ -7,7 +7,7 @@
 package common
 
 import (
-	"github.com/coinbase/kryptology/pkg/core/curves"
+	"github.com/TEENet-io/kryptology/pkg/core/curves"
 )
 
 // SignatureBlinding is a value used for computing blind signatures

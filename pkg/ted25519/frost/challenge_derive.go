@@ -9,7 +9,7 @@ package frost
 import (
 	"crypto/sha512"
 
-	"github.com/coinbase/kryptology/pkg/core/curves"
+	"github.com/TEENet-io/kryptology/pkg/core/curves"
 )
 
 type ChallengeDerive interface {

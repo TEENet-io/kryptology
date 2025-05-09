@@ -18,8 +18,8 @@ import (
 
 	"golang.org/x/crypto/blake2b"
 
-	"github.com/coinbase/kryptology/pkg/core/curves/native/pasta/fp"
-	"github.com/coinbase/kryptology/pkg/core/curves/native/pasta/fq"
+	"github.com/TEENet-io/kryptology/pkg/core/curves/native/pasta/fp"
+	"github.com/TEENet-io/kryptology/pkg/core/curves/native/pasta/fq"
 )
 
 var b = new(fp.Fp).SetUint64(5)

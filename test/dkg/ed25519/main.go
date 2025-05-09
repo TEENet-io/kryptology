@@ -13,10 +13,10 @@ import (
 
 	"filippo.io/edwards25519"
 
-	"github.com/coinbase/kryptology/internal"
-	"github.com/coinbase/kryptology/pkg/core/curves"
-	dkg "github.com/coinbase/kryptology/pkg/dkg/gennaro"
-	"github.com/coinbase/kryptology/pkg/sharing/v1"
+	"github.com/TEENet-io/kryptology/internal"
+	"github.com/TEENet-io/kryptology/pkg/core/curves"
+	dkg "github.com/TEENet-io/kryptology/pkg/dkg/gennaro"
+	v1 "github.com/TEENet-io/kryptology/pkg/sharing/v1"
 )
 
 const LIMIT = 4

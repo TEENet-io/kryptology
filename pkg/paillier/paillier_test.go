@@ -16,8 +16,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	tt "github.com/coinbase/kryptology/internal"
-	crypto "github.com/coinbase/kryptology/pkg/core"
+	tt "github.com/TEENet-io/kryptology/internal"
+	crypto "github.com/TEENet-io/kryptology/pkg/core"
 )
 
 var (

@@ -9,7 +9,7 @@ package bbs
 import (
 	"errors"
 
-	"github.com/coinbase/kryptology/pkg/core/curves"
+	"github.com/TEENet-io/kryptology/pkg/core/curves"
 )
 
 // MessageGenerators are used to sign a vector of commitments for

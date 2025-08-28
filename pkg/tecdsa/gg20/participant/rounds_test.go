@@ -10,6 +10,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -815,6 +816,9 @@ func fullroundstest3Signers(t *testing.T, curve elliptic.Curve, msg []byte, veri
 			2: round6FullBcast[1],
 		})
 		require.NoError(t, err)
+
+		ok := ecdsa.Verify(ppk.ToECDSA(), msg, sigs[0].R, sigs[0].S)
+		fmt.Println("ok:", ok)
 	}
 }
 

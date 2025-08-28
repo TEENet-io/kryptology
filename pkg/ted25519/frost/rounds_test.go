@@ -17,8 +17,9 @@ import (
 )
 
 var (
-	testCurve = curves.ED25519()
-	ctx       = "string to prevent replay attack"
+	testCurve        = curves.K256()
+	challengeDeriver = &Secp256k1ChallengeDeriver{}
+	ctx              = "string to prevent replay attack"
 )
 
 // Create two DKG participants.
@@ -53,7 +54,7 @@ func TestSignRound1Works(t *testing.T) {
 	scheme, _ := sharing.NewShamir(2, 2, testCurve)
 	lCoeffs, err := scheme.LagrangeCoeffs([]uint32{p1.Id, p2.Id})
 	require.NoError(t, err)
-	signer1, err := NewSigner(p1, 1, 2, lCoeffs, []uint32{1, 2}, &Ed25519ChallengeDeriver{})
+	signer1, err := NewSigner(p1, 1, 2, lCoeffs, []uint32{1, 2}, challengeDeriver)
 	require.NoError(t, err)
 	round1Out, _ := signer1.SignRound1()
 	require.NotNil(t, round1Out.Ei)
@@ -71,7 +72,7 @@ func TestSignRound1RepeatCall(t *testing.T) {
 	scheme, _ := sharing.NewShamir(2, 2, testCurve)
 	lCoeffs, err := scheme.LagrangeCoeffs([]uint32{p1.Id, p2.Id})
 	require.NoError(t, err)
-	signer1, _ := NewSigner(p1, 1, 2, lCoeffs, []uint32{1, 2}, &Ed25519ChallengeDeriver{})
+	signer1, _ := NewSigner(p1, 1, 2, lCoeffs, []uint32{1, 2}, challengeDeriver)
 	_, err = signer1.SignRound1()
 	require.NoError(t, err)
 	_, err = signer1.SignRound1()
@@ -91,10 +92,10 @@ func PrepareNewSigners(t *testing.T) (*Signer, *Signer) {
 	require.NotNil(t, lCoeffs[1])
 	require.NotNil(t, lCoeffs[2])
 	require.NoError(t, err)
-	signer1, err := NewSigner(p1, p1.Id, threshold, lCoeffs, []uint32{p1.Id, p2.Id}, &Ed25519ChallengeDeriver{})
+	signer1, err := NewSigner(p1, p1.Id, threshold, lCoeffs, []uint32{p1.Id, p2.Id}, challengeDeriver)
 	require.NotNil(t, signer1)
 	require.NoError(t, err)
-	signer2, err := NewSigner(p2, p2.Id, threshold, lCoeffs, []uint32{p1.Id, p2.Id}, &Ed25519ChallengeDeriver{})
+	signer2, err := NewSigner(p2, p2.Id, threshold, lCoeffs, []uint32{p1.Id, p2.Id}, challengeDeriver)
 	require.NotNil(t, signer2)
 	require.NoError(t, err)
 	return signer1, signer2
@@ -223,10 +224,10 @@ func PrepareRound3Input(t *testing.T) (*Signer, *Signer, map[uint32]*Round2Bcast
 	require.NotNil(t, lCoeffs[2])
 	require.NoError(t, err)
 
-	signer1, err := NewSigner(p1, p1.Id, threshold, lCoeffs, []uint32{p1.Id, p2.Id}, &Ed25519ChallengeDeriver{})
+	signer1, err := NewSigner(p1, p1.Id, threshold, lCoeffs, []uint32{p1.Id, p2.Id}, challengeDeriver)
 	require.NotNil(t, signer1)
 	require.NoError(t, err)
-	signer2, err := NewSigner(p2, p2.Id, threshold, lCoeffs, []uint32{p1.Id, p2.Id}, &Ed25519ChallengeDeriver{})
+	signer2, err := NewSigner(p2, p2.Id, threshold, lCoeffs, []uint32{p1.Id, p2.Id}, challengeDeriver)
 	require.NotNil(t, signer2)
 	require.NoError(t, err)
 
@@ -366,7 +367,7 @@ func TestFullRoundsWorks(t *testing.T) {
 	require.NoError(t, err)
 	signers := make(map[uint32]*Signer, threshold)
 	for _, id := range signerIds {
-		signers[id], err = NewSigner(participants[id], id, uint32(threshold), lCoeffs, signerIds, &Ed25519ChallengeDeriver{})
+		signers[id], err = NewSigner(participants[id], id, uint32(threshold), lCoeffs, signerIds, challengeDeriver)
 		require.NoError(t, err)
 		require.NotNil(t, signers[id].skShare)
 	}

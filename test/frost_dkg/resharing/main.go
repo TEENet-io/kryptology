@@ -16,7 +16,7 @@ var (
 	oldLimit     = 5
 	newThreshold = 4
 	newLimit     = 7
-	testCurve    = curves.ED25519()
+	testCurve    = curves.K256()
 	ctx          = "string to prevent replay attack"
 	msg          = []byte("message to sign")
 	minId        = 1
@@ -85,7 +85,7 @@ func getFrostSigner(
 
 	signers := make(map[uint32]*frost.Signer, len(signerIds))
 	for _, id := range signerIds {
-		signers[id], err = frost.NewSigner(participants[id], id, participants[id].Threshold, lCoeffs, signerIds, &frost.Ed25519ChallengeDeriver{})
+		signers[id], err = frost.NewSigner(participants[id], id, participants[id].Threshold, lCoeffs, signerIds, &frost.Secp256k1ChallengeDeriver{})
 		if err != nil {
 			panic(err)
 		}

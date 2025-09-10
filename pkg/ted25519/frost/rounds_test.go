@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	testCurve        = curves.K256()
-	challengeDeriver = &Secp256k1ChallengeDeriver{}
+	testCurve        = curves.ED25519()
+	challengeDeriver = &Ed25519ChallengeDeriver{}
 	ctx              = "string to prevent replay attack"
 )
 

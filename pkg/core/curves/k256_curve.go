@@ -13,7 +13,7 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 
 	"github.com/TEENet-io/kryptology/internal"
 	"github.com/TEENet-io/kryptology/pkg/core/curves/native"

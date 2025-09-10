@@ -14,7 +14,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/stretchr/testify/require"
 
 	tt "github.com/TEENet-io/kryptology/internal"
@@ -79,16 +79,13 @@ var (
 		return ecdsa.Verify(pk, hash, sig.R, sig.S)
 	}
 	k256Verifier = func(pubKey *curves.EcPoint, hash []byte, sig *curves.EcdsaSignature) bool {
-		btcPk := &btcec.PublicKey{
+		// Use standard library for verification since btcec v2 API is complex
+		pk := &ecdsa.PublicKey{
 			Curve: btcec.S256(),
 			X:     pubKey.X,
 			Y:     pubKey.Y,
 		}
-		btcSig := btcec.Signature{
-			R: sig.R,
-			S: sig.S,
-		}
-		return btcSig.Verify(hash, btcPk)
+		return ecdsa.Verify(pk, hash, sig.R, sig.S)
 	}
 )
 
@@ -654,9 +651,11 @@ func fullroundstest3Signers(t *testing.T, curve elliptic.Curve, msg []byte, veri
 		pk, signers := setupSignersMap(t, curve, playerMin, playerCnt, false, verify, useDistributed)
 
 		sk := signers[1].share.Value.Add(signers[2].share.Value).Add(signers[3].share.Value)
-		_, ppk := btcec.PrivKeyFromBytes(curve, sk.Bytes())
-
-		if ppk.X.Cmp(pk.X) != 0 || ppk.Y.Cmp(pk.Y) != 0 {
+		
+		// Verify the combined shares equal the public key
+		// For generic elliptic curves, compute pk = sk * G
+		ppkX, ppkY := curve.ScalarBaseMult(sk.Bytes())
+		if ppkX.Cmp(pk.X) != 0 || ppkY.Cmp(pk.Y) != 0 {
 			t.Errorf("Invalid shares")
 			t.FailNow()
 		}
@@ -817,7 +816,13 @@ func fullroundstest3Signers(t *testing.T, curve elliptic.Curve, msg []byte, veri
 		})
 		require.NoError(t, err)
 
-		ok := ecdsa.Verify(ppk.ToECDSA(), msg, sigs[0].R, sigs[0].S)
+		// Use the public key we already have
+		ecdsaPK := &ecdsa.PublicKey{
+			Curve: curve,
+			X:     pk.X,
+			Y:     pk.Y,
+		}
+		ok := ecdsa.Verify(ecdsaPK, msg, sigs[0].R, sigs[0].S)
 		fmt.Println("ok:", ok)
 	}
 }

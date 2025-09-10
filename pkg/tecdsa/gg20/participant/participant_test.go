@@ -10,11 +10,12 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/json"
 	"math/big"
 	"testing"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TEENet-io/kryptology/internal"
@@ -368,15 +369,30 @@ func TestNormalizeSK256Identity(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		msg, err := core.Rand(curve.N)
 		require.NoError(t, err)
-		sk, err := btcec.NewPrivateKey(curve)
+		sk, err := btcec.NewPrivateKey()
 		require.NoError(t, err)
 
-		sig, err := sk.Sign(msg.Bytes())
+		// Use standard crypto/ecdsa for signing
+		hash := sha256.Sum256(msg.Bytes())
+		r, s, err := ecdsa.Sign(rand.Reader, sk.ToECDSA(), hash[:])
 		require.NoError(t, err)
-
-		sNorm := signer.normalizeS(sig.S)
-
-		require.Equal(t, sig.S, sNorm)
+		_ = r // unused
+		
+		// normalizeS ensures s is in the lower half of the field
+		sNorm := signer.normalizeS(s)
+		
+		// Check that sNorm is indeed normalized (s <= n/2)
+		halfN := new(big.Int).Div(curve.N, big.NewInt(2))
+		require.LessOrEqual(t, sNorm.Cmp(halfN), 0, "normalized S should be <= n/2")
+		
+		// If s was already normalized, it should be unchanged
+		// If s was > n/2, then sNorm should be n - s
+		if s.Cmp(halfN) <= 0 {
+			require.Equal(t, s, sNorm)
+		} else {
+			expected := new(big.Int).Sub(curve.N, s)
+			require.Equal(t, expected, sNorm)
+		}
 	}
 }
 

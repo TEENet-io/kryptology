@@ -10,7 +10,7 @@ import (
 
 	"github.com/TEENet-io/kryptology/pkg/core/curves"
 	"github.com/TEENet-io/kryptology/pkg/sharing"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 )
 
 func TestK256(t *testing.T) {
@@ -49,7 +49,7 @@ func TestK256(t *testing.T) {
 		panic("verification keys are not equal")
 	}
 
-	privKey, pubKey := btcec.PrivKeyFromBytes(btcec.S256(), sk.Bytes())
+	privKey, pubKey := btcec.PrivKeyFromBytes(sk.Bytes())
 	hBytes := sha512.Sum384(msg)
 	hMsg := new(big.Int).SetBytes(hBytes[:])
 	hMsg.Mod(hMsg, btcec.S256().N)

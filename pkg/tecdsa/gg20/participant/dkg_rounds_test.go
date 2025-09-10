@@ -9,6 +9,7 @@ package participant
 import (
 	"crypto/elliptic"
 	"math/big"
+	"sync"
 	"testing"
 
 	"github.com/btcsuite/btcd/btcec"
@@ -433,7 +434,7 @@ func setupDkgRound2Params(curve elliptic.Curve, threshold, total int) (map[uint3
 	v2, x2, _ := feldman.Split(u2.Bytes())
 	c2, d2, _ := commitVerifiers(v2)
 	sk2, _ := paillier.NewSecretKey(testPrimes[1], testPrimes[2])
-	pk2 := &sk1.PublicKey
+	pk2 := &sk2.PublicKey
 	p2 := tt.B10("80835583194913519255227175491027534116323858942133804957873380964125769952153722872767395985807182088879137751973737195611736535673308039044731251312798604370125595953965575058201727000947562582634872106737658889028847062612351664088766417932577222262750095599375976992110180518474405571076375447630197402683")
 	q2 := tt.B10("69210064501097857725048553909160987839131798505582280831015356795143548214286337962509303315200340351978784326318311835136991907096681964505529171491850250428938993794552587102107113717157628550696163063380650545271668730646004879534943159254419759086140189236571989463830596906364636114340509119890275606391")
 	N2 := tt.B10("22378543707615306836182422597086174059399103708656614542204375941627776221585838908498318709084953151230965854544463050621828248405138252834708522307450445556723033074493621883193914559018381068514705602518576848505473239373873163089017151419401575132561803936035907582328999663685768377599926812681660506565947765011705274480316011005378618472210395471633060565141691029027315925435485138015621760349367644867362058194502904616776430082646477391555516713467661564007827039040130177584810996845324575709856975050152799234612346180661626644267859546152830340382918108278013986195106643466879089206972260629605087406361")
@@ -499,7 +500,7 @@ func setupDkgRound2Params(curve elliptic.Curve, threshold, total int) (map[uint3
 	v3, x3, _ := feldman.Split(u3.Bytes())
 	c3, d3, _ := commitVerifiers(v3)
 	sk3, _ := paillier.NewSecretKey(testPrimes[2], testPrimes[3])
-	pk3 := &sk1.PublicKey
+	pk3 := &sk3.PublicKey
 	p3 := tt.B10("82762378445241041785597416507146490924447650731139897784752935952615188889635739493260515391609009395512012510709694417682987650969620502923818755809286104031313081465573622419369705445472375093283434921189190872945878407680529264737835792880592698668922695556861850401038676208972765968600517704143107930939")
 	q3 := tt.B10("69984280963080064677800727110502274842099368563604158420066520063922637818395160287343267480348823052616167329961701614168083898925612364204117254926526013551734867336492773207372540967720859662663438793769658958121285041708356176137310878638419197674131049677486047662703715583824220317748400146581518805651")
 	N3 := tt.B10("23168262185138042086985251479966140367473901735462054883904158802899264898691745453544888260128845593494180271821344835446388187526575974414101963091834292189789300379762157838980851815082897653013412610189597921830744654589452349113217726909094907934886602336832701591827947839296008075387481044145203853001040451482685799793720746884491540403980953810998121611944634910546812395244563473672734584566589265151370354163653553724356278901340380622401163641562474726319566531912584399552348312976911765268861745938301120268844120841005241592287730934409073936996169212424570979999552686559812737873042697608781537218337")
@@ -966,6 +967,253 @@ func TestDkgFullRoundsWorks(t *testing.T) {
 	dkgR4Out := make(map[uint32]*DkgResult, total)
 	for i := 1; i <= total; i++ {
 		dkgR4Out[uint32(i)], err = dkgParticipants[uint32(i)].DkgRound4(dkgR3Out)
+		require.NoError(t, err)
+	}
+
+	// Check that the shares result in valid secret key and public key
+	field := curves.NewField(curve.Params().N)
+
+	shamir, _ := v1.NewShamir(threshold, total, field)
+	share1 := v1.NewShamirShare(1, dkgR4Out[1].SigningKeyShare.Bytes(), field)
+	share2 := v1.NewShamirShare(2, dkgR4Out[2].SigningKeyShare.Bytes(), field)
+	share3 := v1.NewShamirShare(3, dkgR4Out[3].SigningKeyShare.Bytes(), field)
+	secret12, err := shamir.Combine(share1, share2)
+	require.NoError(t, err)
+	secret13, err := shamir.Combine(share1, share3)
+	require.NoError(t, err)
+	secret23, err := shamir.Combine(share2, share3)
+	require.NoError(t, err)
+
+	require.Equal(t, secret12, secret13)
+	require.Equal(t, secret12, secret23)
+
+	// Check the relationship of verification key and signing key is valid
+	pk, err := curves.NewScalarBaseMult(curve, new(big.Int).SetBytes(secret12))
+	require.NoError(t, err)
+	require.True(t, dkgParticipants[1].state.Y.Equals(pk))
+
+	// Check every participant has the same verification key
+	require.Equal(t, dkgParticipants[1].state.Y, dkgParticipants[2].state.Y)
+	require.Equal(t, dkgParticipants[1].state.Y, dkgParticipants[3].state.Y)
+
+	// Testing validity of paillier public key and secret key
+	// Check every participant receives equal paillier public keys from other parties
+	require.Equal(t, dkgParticipants[1].state.otherParticipantData[2].PublicKey, dkgParticipants[3].state.otherParticipantData[2].PublicKey)
+	require.Equal(t, dkgParticipants[1].state.otherParticipantData[3].PublicKey, dkgParticipants[2].state.otherParticipantData[3].PublicKey)
+	require.Equal(t, dkgParticipants[2].state.otherParticipantData[1].PublicKey, dkgParticipants[3].state.otherParticipantData[1].PublicKey)
+
+	// Testing validity of paillier keys of participant 1
+	pk1 := dkgParticipants[2].state.otherParticipantData[1].PublicKey
+	sk1 := dkgParticipants[1].state.Sk
+	msg1, _ := core.Rand(pk1.N)
+	c1, r1, err := pk1.Encrypt(msg1)
+	require.NoError(t, err)
+	require.NotNil(t, c1, r1)
+	m1, err := sk1.Decrypt(c1)
+	require.Equal(t, m1, msg1)
+	require.NoError(t, err)
+
+	// Testing validity of paillier keys of participant 2
+	pk2 := dkgParticipants[1].state.otherParticipantData[2].PublicKey
+	sk2 := dkgParticipants[2].state.Sk
+	msg, _ := core.Rand(pk2.N)
+	c, r, err := pk2.Encrypt(msg)
+	require.NoError(t, err)
+	require.NotNil(t, c, r)
+	m, err := sk2.Decrypt(c)
+	require.Equal(t, m, msg)
+	require.NoError(t, err)
+
+	// Testing validity of paillier keys of participant 3
+	pk3 := dkgParticipants[1].state.otherParticipantData[3].PublicKey
+	sk3 := dkgParticipants[3].state.Sk
+	msg3, _ := core.Rand(pk3.N)
+	c3, r3, err := pk3.Encrypt(msg3)
+	require.NoError(t, err)
+	require.NotNil(t, c3, r3)
+	m3, err := sk3.Decrypt(c3)
+	require.Equal(t, m3, msg3)
+	require.NoError(t, err)
+
+	// Checking public shares are equal
+	require.Equal(t, dkgParticipants[1].state.PublicShares, dkgParticipants[2].state.PublicShares)
+	require.Equal(t, dkgParticipants[1].state.PublicShares, dkgParticipants[3].state.PublicShares)
+
+	// Checking proof params are equal
+	require.Equal(t, dkgR4Out[1].ParticipantData[2].ProofParams, dkgR4Out[3].ParticipantData[2].ProofParams)
+	require.Equal(t, dkgR4Out[1].ParticipantData[3].ProofParams, dkgR4Out[2].ParticipantData[3].ProofParams)
+	require.Equal(t, dkgR4Out[2].ParticipantData[1].ProofParams, dkgR4Out[3].ParticipantData[1].ProofParams)
+}
+
+func TestDkgFullRoundsParallel(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+	curve := btcec.S256()
+	total := 3
+	threshold := 2
+
+	// Initiate 3 parties for DKG
+	dkgParticipants := make(map[uint32]*DkgParticipant, total)
+	for i := 1; i <= total; i++ {
+		dkgParticipants[uint32(i)] = &DkgParticipant{
+			Curve: curve,
+			id:    uint32(i),
+			Round: 1,
+			state: &dkgstate{
+				Threshold: uint32(threshold),
+				Limit:     uint32(total),
+			},
+		}
+	}
+
+	// Run Dkg Round 1 in parallel
+	dkgR1Out := make(map[uint32]*DkgRound1Bcast, total)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	errChan := make(chan error, total)
+
+	for i := 1; i <= total; i++ {
+		wg.Add(1)
+		go func(id uint32) {
+			defer wg.Done()
+			result, err := dkgParticipants[id].DkgRound1(uint32(threshold), uint32(total))
+			if err != nil {
+				errChan <- err
+				return
+			}
+			mu.Lock()
+			dkgR1Out[id] = result
+			mu.Unlock()
+		}(uint32(i))
+	}
+	wg.Wait()
+	close(errChan)
+
+	// Check for errors
+	for err := range errChan {
+		require.NoError(t, err)
+	}
+
+	// Run Dkg Round 2 in parallel
+	dkgR2Bcast := make(map[uint32]*DkgRound2Bcast, total)
+	dkgR2P2PSend := make(map[uint32]map[uint32]*DkgRound2P2PSend, total)
+	errChan2 := make(chan error, total)
+
+	for i := 1; i <= total; i++ {
+		wg.Add(1)
+		go func(id uint32) {
+			defer wg.Done()
+			bcast, p2p, err := dkgParticipants[id].DkgRound2(dkgR1Out)
+			if err != nil {
+				errChan2 <- err
+				return
+			}
+			mu.Lock()
+			dkgR2Bcast[id] = bcast
+			dkgR2P2PSend[id] = p2p
+			mu.Unlock()
+		}(uint32(i))
+	}
+	wg.Wait()
+	close(errChan2)
+
+	// Check for errors
+	for err := range errChan2 {
+		require.NoError(t, err)
+	}
+
+	// Run Dkg Round 3 in parallel
+	decommitments := make(map[uint32]*core.Witness, total)
+	dkgR3Out := make(map[uint32]paillier.PsfProof)
+	decommitments[1] = dkgR2Bcast[1].Di
+	decommitments[2] = dkgR2Bcast[2].Di
+	decommitments[3] = dkgR2Bcast[3].Di
+
+	errChan3 := make(chan error, total)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		result, err := dkgParticipants[1].DkgRound3(decommitments, map[uint32]*v1.ShamirShare{
+			1: dkgParticipants[1].state.X[0],
+			2: dkgParticipants[2].state.X[0],
+			3: dkgParticipants[3].state.X[0],
+		})
+		if err != nil {
+			errChan3 <- err
+			return
+		}
+		mu.Lock()
+		dkgR3Out[1] = result
+		mu.Unlock()
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		result, err := dkgParticipants[2].DkgRound3(decommitments, map[uint32]*v1.ShamirShare{
+			1: dkgParticipants[1].state.X[1],
+			2: dkgParticipants[2].state.X[1],
+			3: dkgParticipants[3].state.X[1],
+		})
+		if err != nil {
+			errChan3 <- err
+			return
+		}
+		mu.Lock()
+		dkgR3Out[2] = result
+		mu.Unlock()
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		result, err := dkgParticipants[3].DkgRound3(decommitments, map[uint32]*v1.ShamirShare{
+			1: dkgParticipants[1].state.X[2],
+			2: dkgParticipants[2].state.X[2],
+			3: dkgParticipants[3].state.X[2],
+		})
+		if err != nil {
+			errChan3 <- err
+			return
+		}
+		mu.Lock()
+		dkgR3Out[3] = result
+		mu.Unlock()
+	}()
+
+	wg.Wait()
+	close(errChan3)
+
+	// Check for errors
+	for err := range errChan3 {
+		require.NoError(t, err)
+	}
+
+	// Run Dkg Round 4 in parallel
+	dkgR4Out := make(map[uint32]*DkgResult, total)
+	errChan4 := make(chan error, total)
+
+	for i := 1; i <= total; i++ {
+		wg.Add(1)
+		go func(id uint32) {
+			defer wg.Done()
+			result, err := dkgParticipants[id].DkgRound4(dkgR3Out)
+			if err != nil {
+				errChan4 <- err
+				return
+			}
+			mu.Lock()
+			dkgR4Out[id] = result
+			mu.Unlock()
+		}(uint32(i))
+	}
+	wg.Wait()
+	close(errChan4)
+
+	// Check for errors
+	for err := range errChan4 {
 		require.NoError(t, err)
 	}
 

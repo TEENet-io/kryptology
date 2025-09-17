@@ -348,8 +348,8 @@ func (p *PointBls12377G1) Random(reader io.Reader) Point {
 }
 
 func (p *PointBls12377G1) Hash(bytes []byte) Point {
-	var domain = []byte("BLS12377G1_XMD:SHA-256_SVDW_RO_")
-	pt, err := bls12377.HashToCurveG1Svdw(bytes, domain)
+	var domain = []byte("BLS12377G1_XMD:SHA-256_SSWU_RO_")
+	pt, err := bls12377.HashToG1(bytes, domain)
 	if err != nil {
 		return nil
 	}
@@ -622,8 +622,8 @@ func (p *PointBls12377G2) Random(reader io.Reader) Point {
 }
 
 func (p *PointBls12377G2) Hash(bytes []byte) Point {
-	var domain = []byte("BLS12377G2_XMD:SHA-256_SVDW_RO_")
-	pt, err := bls12377.HashToCurveG2Svdw(bytes, domain)
+	var domain = []byte("BLS12377G2_XMD:SHA-256_SSWU_RO_")
+	pt, err := bls12377.HashToG2(bytes, domain)
 	if err != nil {
 		return nil
 	}

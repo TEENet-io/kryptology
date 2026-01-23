@@ -5,6 +5,35 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.8.1
+
+### Fixed
+
+- **FROST secp256k1 Signature Fix**: Fixed ~50% failure rate of FROST signatures on secp256k1 curve.
+
+  **Root Cause**: In `pkg/ted25519/frost/round2.go`, when `R.IsNegative()` is true (approximately 50% probability on secp256k1), the challenge value `c = H(m, R)` was computed before negating R, causing signature verification to fail as `c' = H(m, -R) != c`.
+
+  **Solution**: Move the R negation check before computing the challenge value to ensure c uses the correct (possibly negated) R value:
+  ```go
+  // Check and negate first
+  if R.IsNegative() {
+      R = R.Neg()
+      for id := range Rs {
+          Rs[id] = Rs[id].Neg()
+      }
+      signer.state.smallE = signer.state.smallE.Neg()
+      signer.state.smallD = signer.state.smallD.Neg()
+  }
+  // Then compute the challenge
+  c, err := signer.challengeDeriver.DeriveChallenge(msg, signer.verificationKey, R)
+  ```
+
+  **Scope**: Only affects the secp256k1 curve. Ed25519's `IsNegative()` always returns false and is unaffected.
+
+### Added
+
+- Added debugging access methods to `Signer` struct: `GetSumR()`, `GetChallenge()`, `GetCosigners()`
+
 ## v1.8.0
 
 - BLS12-381 is now constant time.

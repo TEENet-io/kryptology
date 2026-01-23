@@ -35,10 +35,15 @@ func (result *Round2Bcast) Encode() ([]byte, error) {
 }
 
 func (result *Round2Bcast) Decode(input []byte) error {
+	// Register all possible scalar and point types before decoding
+	gob.Register(&curves.ScalarEd25519{})
+	gob.Register(&curves.ScalarK256{})
+	gob.Register(&curves.PointEd25519{})
+	gob.Register(&curves.PointK256{})
 	buf := bytes.NewBuffer(input)
 	dec := gob.NewDecoder(buf)
 	if err := dec.Decode(result); err != nil {
-		return errors.Wrap(err, "couldn't encode round 1 broadcast")
+		return errors.Wrap(err, "couldn't decode round 2 broadcast")
 	}
 	return nil
 }
@@ -114,13 +119,25 @@ func (signer *Signer) SignRound2(msg []byte, round2Input map[uint32]*Round1Bcast
 		R = R.Add(Rj)
 	}
 
-	// Step 7 - c = H(m, R)
+	// For BIP-340 compatibility on secp256k1: if R has odd Y coordinate,
+	// negate R and all Rj values, and also negate the nonces (d, e).
+	// This ensures the signature verification will work correctly.
+	if R.IsNegative() {
+		R = R.Neg()
+		for id := range Rs {
+			Rs[id] = Rs[id].Neg()
+		}
+		signer.state.smallE = signer.state.smallE.Neg()
+		signer.state.smallD = signer.state.smallD.Neg()
+	}
+
+	// Step 7 - c = H(m, R) - computed AFTER potential negation
 	c, err := signer.challengeDeriver.DeriveChallenge(msg, signer.verificationKey, R)
 	if err != nil {
 		return nil, err
 	}
 
-	// Step 8 - Record c, R, Rjs
+	// Step 8 - Record c, R, Rjs (with potentially negated values)
 	signer.state.c = c
 	signer.state.capRs = Rs
 	signer.state.sumR = R
@@ -130,11 +147,6 @@ func (signer *Signer) SignRound2(msg []byte, round2Input map[uint32]*Round1Bcast
 	Liski := Li.Mul(signer.skShare)
 
 	Liskic := Liski.Mul(c)
-
-	if R.IsNegative() {
-		signer.state.smallE = signer.state.smallE.Neg()
-		signer.state.smallD = signer.state.smallD.Neg()
-	}
 
 	eiri := signer.state.smallE.Mul(ri)
 

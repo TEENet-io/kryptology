@@ -34,10 +34,13 @@ func (result *Round1Bcast) Encode() ([]byte, error) {
 }
 
 func (result *Round1Bcast) Decode(input []byte) error {
+	// Register all possible point types before decoding
+	gob.Register(&curves.PointEd25519{})
+	gob.Register(&curves.PointK256{})
 	buf := bytes.NewBuffer(input)
 	dec := gob.NewDecoder(buf)
 	if err := dec.Decode(result); err != nil {
-		return errors.Wrap(err, "couldn't encode round 1 broadcast")
+		return errors.Wrap(err, "couldn't decode round 1 broadcast")
 	}
 	return nil
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/ed25519"
 	"fmt"
 
 	"github.com/TEENet-io/kryptology/internal"
@@ -59,21 +58,26 @@ func main() {
 	results := frostSign(signers, msg, signerIds)
 
 	// Verify signature
-	pk := participants[ids[0]].VerificationKey.ToAffineCompressed()
+	pk := participants[ids[0]].VerificationKey
 	for _, id := range signerIds {
-		R := results[id].R.ToAffineCompressed()
-		Z := results[id].Z.Bytes()
-		if !verify(msg, R, Z, pk) {
+		sig := &frost.Signature{
+			Z: results[id].Z,
+			C: results[id].C,
+		}
+		if !verify(msg, sig, pk) {
 			panic("signature verification failed")
 		}
 	}
 	fmt.Print("**Frost Signatures Verified**\n")
 }
 
-func verify(msg []byte, R []byte, Z []byte, publicKey []byte) bool {
-	pub := ed25519.PublicKey(publicKey)
-	sig := append(R[:], Z[:]...)
-	return ed25519.Verify(pub, msg, sig)
+func verify(msg []byte, signature *frost.Signature, publicKey curves.Point) bool {
+	ok, err := frost.Verify(testCurve, &frost.Secp256k1ChallengeDeriver{}, publicKey, msg, signature)
+	if err != nil {
+		fmt.Printf("verify error: %v\n", err)
+		return false
+	}
+	return ok
 }
 
 func getFrostSigner(

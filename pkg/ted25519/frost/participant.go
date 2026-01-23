@@ -81,3 +81,24 @@ func NewSigner(info *frost.DkgParticipant, id, thresh uint32, lcoeffs map[uint32
 		challengeDeriver: challengeDeriver,
 	}, nil
 }
+
+// GetSumR returns the accumulated R point from round 2 (for debugging)
+func (s *Signer) GetSumR() curves.Point {
+	if s.state == nil {
+		return nil
+	}
+	return s.state.sumR
+}
+
+// GetChallenge returns the challenge scalar c from round 2 (for debugging)
+func (s *Signer) GetChallenge() curves.Scalar {
+	if s.state == nil {
+		return nil
+	}
+	return s.state.c
+}
+
+// GetCosigners returns the cosigners slice (for debugging)
+func (s *Signer) GetCosigners() []uint32 {
+	return s.cosigners
+}

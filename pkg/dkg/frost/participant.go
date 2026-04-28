@@ -75,6 +75,48 @@ func NewDkgParticipant(id, threshold uint32, ctx string, curve *curves.Curve, ot
 	}, nil
 }
 
+// normalizeBIP340IfNeeded flips the sign of the share, the local
+// vk-share, the group verification key, and every Feldman commitment
+// when:
+//   - the curve is secp256k1 (BIP-340 only applies there);
+//   - the group VerificationKey has odd Y.
+//
+// Called automatically at the end of DKG round 2 and resharing round 2
+// so callers don't have to remember the BIP-340 parity discipline. For
+// any other curve (Ed25519 in this tree) it is a deterministic no-op
+// because BIP-340's "even-Y" requirement does not apply.
+//
+// All participants observe the same VerificationKey and Commitments, so
+// the decision to flip is identical across the cluster — no extra
+// consensus needed.
+//
+// Returns true when a flip happened (callers can log it).
+func (dp *DkgParticipant) normalizeBIP340IfNeeded() bool {
+	if dp == nil || dp.Curve == nil || dp.VerificationKey == nil || dp.SkShare == nil {
+		return false
+	}
+	if dp.Curve.Name != curves.K256Name {
+		return false
+	}
+	// SEC1 compressed: 0x02 = even Y, 0x03 = odd Y. Cheaper than the
+	// generic IsNegative() and matches what BIP-340 verifiers do.
+	vkBytes := dp.VerificationKey.ToAffineCompressed()
+	if len(vkBytes) != 33 || vkBytes[0] == 0x02 {
+		return false
+	}
+	dp.SkShare = dp.SkShare.Neg()
+	dp.VerificationKey = dp.VerificationKey.Neg()
+	if dp.VkShare != nil {
+		dp.VkShare = dp.VkShare.Neg()
+	}
+	for i := range dp.Commitments {
+		if dp.Commitments[i] != nil {
+			dp.Commitments[i] = dp.Commitments[i].Neg()
+		}
+	}
+	return true
+}
+
 func (dp *DkgParticipant) Limit() uint32 {
 	if dp == nil || dp.Curve == nil {
 		return 0

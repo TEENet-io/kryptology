@@ -413,7 +413,7 @@ func (p *PointK256) IsIdentity() bool {
 }
 
 func (p *PointK256) IsNegative() bool {
-	return p.value.GetY().Value[0]&1 == 1
+	return p.ToAffineCompressed()[0] == 0x03
 }
 
 func (p *PointK256) IsOnCurve() bool {

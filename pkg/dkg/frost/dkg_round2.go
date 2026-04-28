@@ -158,10 +158,16 @@ func (dp *DkgParticipant) Round2(bcast map[uint32]*Round1Bcast, p2psend map[uint
 	// Store verification key
 	dp.VerificationKey = vk
 
+	// For secp256k1 BIP-340 use cases, every public key (including the
+	// group VK) must have even Y. Apply that discipline here so callers
+	// don't need to know about it. No-op on other curves.
+	dp.normalizeBIP340IfNeeded()
+
 	// Update round number
 	dp.round = 3
 
-	// Broadcast
+	// Broadcast (Commitments / VkShare reflect any BIP-340 normalisation
+	// performed above, so all participants stay consistent).
 	return &Round2Bcast{
 		dp.Commitments,
 		dp.VkShare,

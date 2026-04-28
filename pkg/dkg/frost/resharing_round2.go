@@ -153,5 +153,12 @@ func (r *Resharing) ResharingRound2(
 	np.VerificationKey = commitments[0]
 	np.VkShare = curve.ScalarBaseMult(skShare)
 
+	// Same BIP-340 even-Y discipline as the initial DKG. Resharing keeps
+	// the same VerificationKey, so on secp256k1 the group key was already
+	// even-Y from the first DKG and this is a no-op for the VK — but the
+	// local share can still pick up a sign that needs flipping, so we
+	// run the check to keep SkShare * G == sum_j Commitments[j] * Id^j.
+	np.normalizeBIP340IfNeeded()
+
 	return nil
 }
